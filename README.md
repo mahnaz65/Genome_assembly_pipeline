@@ -4,7 +4,7 @@ Genome assembly workshop
 
 # Raw data
 
-I created a subsample from HiFi PacBio read that I have. With these subsamples, you should run the analyses on your local computer. So far, I do not have Hi-C data
+I created a subsample from HiFi PacBio read that I have. With these subsamples, you should be able to run the analyses on your local computer. So far, I do not have Hi-C data
 related to this sample, so, we run the pipeline without the Hi-C data.
 As you can see in the names of the samples, one of them is smaller. you can try which one that works on your local computer. Please download the files from the links below:
 
