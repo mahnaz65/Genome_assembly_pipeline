@@ -60,7 +60,7 @@ cd $SCRATCHDIR
 cp $INPUT/*.fastq .
 ls *.fastq > Files
 kmc -k21 -t16 -m64 -ci1 -cs10000 @Files reads $SCRATCHDIR
-kmc_tools transform reads histogram reads.histo -cx10000
+kmc_tools transform reads histogram reads.hist -cx10000
 ```
 This script produces these outputs: *reads.histo* ,*reads.kmc_pre* ,*reads.kmc_suf*. Then we can upload histo file into [GenomeScope2](http://qb.cshl.edu/genomescope/genomescope2.0/) to create the plots. 
  
