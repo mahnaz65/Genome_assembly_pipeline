@@ -4,8 +4,7 @@ Genome assembly workshop
 
 # Raw data
 
-I created a subsample from HiFi PacBio read that I have. With these subsamples, you should be able to run the analyses on your local computer. So far, I do not have Hi-C data
-related to this sample, so, we run the pipeline without the Hi-C data.
+I created a subsample from HiFi PacBio read that I have. With these subsamples, you should be able to run the analyses on your local computer.
 As you can see in the names of the samples, one of them is smaller. you can try which one that works on your local computer. Please download the files from the links below:
 
 https://drive.google.com/file/d/16gE0bZWr3eby1jbJR1oITroP3scXxwfJ/view?usp=drive_link
@@ -48,16 +47,6 @@ Before starting a de novo genome assembly project, it is useful to estimate the 
 KMC is a disk-based program for counting k-mers from (possibly gzipped) FASTQ/FASTA files.  
 Here is the script:  
 ```
-#PBS -l select=1:ncpus=16:mem=70gb:scratch_local=100gb
-#PBS -l walltime=2:00:00
-module add kmc/3.1.1
-
-INPUT=/storage/brno2/home/mahnaz_nezami/rawData/conAdapt/Erysimum/unzip_file
-OUTPUT=/storage/brno2/home/mahnaz_nezami/outputs/KMC/tmp
-
-
-cd $SCRATCHDIR
-cp $INPUT/*.fastq .
 ls *.fastq > Files
 kmc -k21 -t16 -m64 -ci1 -cs10000 @Files reads $SCRATCHDIR
 kmc_tools transform reads histogram reads.hist -cx10000
@@ -68,22 +57,14 @@ This script produces these outputs: *reads.histo* ,*reads.kmc_pre* ,*reads.kmc_s
 Run hifiasm (https://github.com/chhylp123/hifiasm) to generate initial assembly.
    - If the species is (nearly) homozygous, run hifiasm with the `-l0`parameter and include the HiFi reads as input only. This disables haplotype purging, which would erroneously remove repetitive sequences (that are mistakingly seen as alternate haplotypes) otherwise. This will generate a primary assembly graph as output (`prefix.p_ctg.gfa`) 
    - If the species is heterozygous, run hifiasm with both HifI reads and Hi-C reads as input. This will generate two-phased assembly graphs, corresponding to the two haplotypes (`prefix.dip.hap1.p_ctg.gfa` and `prefix.dip.hap2.p_ctg.gfa`)
+   - As hifiasm determines the threshold for homozygous read coverage to be 36. If this threshold is significantly lower than the peak coverage for homozygous reads, the result may be two uneven assemblies. To prevent this, set --hom-cov to match the homozygous coverage peak. You can find the value for --hom-cov from your GenomeScope plot.
+   - For samples with high heterozygosity rate, a common issue is that one assembly is much larger than another one. To fix this issue, please set smaller value for -s (default: 0.55). 
 Here is the script:
 ```
-#!/bin/bash
-
-#PBS -l select=1:ncpus=16:mem=100gb:scratch_local=100gb
-#PBS -l walltime=24:00:00
-module add hifiasm/0.19.7
-
-
-INPUT=/storage/brno12-cerit/home/mahnaz_nezami/rawData/conAdapt/Noccaea
-OUTPUT=/storage/brno12-cerit/home/mahnaz_nezami/rawData/conAdapt/Noccaea
-
 cd $SCRATCHDIR
 mkdir out
 cp $INPUT/*fastq.gz .
-hifiasm -o ./out/Noccaea.asm -t 16 ./*fastq.gz
+hifiasm -o asm_HiC_mod -t 32 --h1 ./HiC_1.fq.gz --h2 ./HiC_2.fq.gz ./HiFi.fastq.gz --hom-cov 120 --primary
 ```
 #### Hifiasm generates different types of assemblies based on the input data;  
 In general, hifiasm generates the following assembly graphs in the GFA format:
@@ -130,17 +111,12 @@ If the option --primary or -l0 is specified, hifiasm outputs:
 . four assembly files *.asm.bp.hap1.p_ctg.gfa*, *.asm.bp.hap2.p_ctg.gfa*, *asm.bp.p_ctg.gfa*  
     *hap1* and *hap2* can be thought to represent the two haplotypes in a diploid genome, though with occasional switch errors. The frequency of switches is determined by the heterozygosity of the input sample.  
 
-At the first run, hifiasm saves corrected reads and overlaps to disk as NA12878.asm.*.bin. It reuses the saved results to avoid the time-consuming all-vs-all overlap calculation next time. You may specify -i to ignore precomputed overlaps and redo overlapping from raw reads. You can also dump error corrected reads in FASTA and read overlaps in PAF with  
-```
-hifiasm -o NA12878.asm -t 32 --write-paf --write-ec /dev/null
-```
+
 Hifiasm purges haplotig duplications by default. For inbred or homozygous genomes, you may disable purging with option -l0. Old HiFi reads may contain short adapter sequences at the ends of reads. You can specify -z20 to trim both ends of reads by 20bp. For small genomes, use -f0 to disable the initial bloom filter which takes 16GB of memory at the beginning. For genomes much larger than human, applying -f38 or even -f39 is preferred to save memory on k-mer counting.  
 #### Hi-C integration
 Hifiasm can generate a pair of haplotype-resolved assemblies with paired-end Hi-C reads:  
-```
-hifiasm -o NA12878.asm -t32 --h1 read1.fq.gz --h2 read2.fq.gz HiFi-reads.fq.gz
-```
-In this mode, each contig is supposed to be a haplotig, which by definition comes from one parental haplotype only. Hifiasm often puts all contigs from the same parental chromosome in one assembly. It has cleanly separated chrX and chrY for a human male dataset. Nonetheless, phasing across centromeres is challenging. Hifiasm is often able to phase entire chromosomes but it may fail in rare cases. Also, contigs from different parental chromosomes are randomly mixed as it is just not possible to phase across chromosomes with Hi-C.
+
+In this mode, each contig is supposed to be a haplotig, which by definition comes from one parental haplotype only. Hifiasm is often able to phase entire chromosomes but it may fail in rare cases. Also, contigs from different parental chromosomes are randomly mixed as it is just not possible to phase across chromosomes with Hi-C.
 
 Hifiasm does not perform scaffolding for now. You need to run a standalone scaffolder such as SALSA or 3D-DNA to scaffold phased haplotigs.  
 For samples with high heterozygosity rate, a common issue is that one assembly is much larger than another one. To fix this issue, please set smaller value for -s (default: 0.55). Another possibility is that hifiasm misidentifies coverage threshold for homozygous reads. In this case, please set --hom-cov to homozygous coverage peak. See ["How can I tweak parameters to improve Hi-C integrated assembly?"](https://hifiasm.readthedocs.io/en/latest/faq.html#hic-iss) for more details.
