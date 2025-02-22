@@ -10,29 +10,33 @@ https://drive.google.com/file/d/16gE0bZWr3eby1jbJR1oITroP3scXxwfJ/view?usp=drive
 https://drive.google.com/file/d/1GtP7SLnQEGgsxywnZqsOaTIDWN5QYsLs/view?usp=drive_link
 
 
-Generally, there are three steps to generate the assembly file. First is generating the initial assembly, then scaffolding, and then polishing.
-
+## Introduction
+Generally, there are three steps to generate the assembly file. First is generating the initial assembly, then scaffolding, and then polishing. 
 ## 1. Initial assembly:
-In this step, we need Hifi read, Hi-c reads, and an estimation of the genome size from Kmer analysis. 
+In this page, we will use PacBio HiFi reads + HiC data. The assembler is Hifiasm (v1.9.8), that it can be run in three modes based on our available data, the heterozygosity of our species, and our downstream usage of the assembly. Here, I run it in the "HiC_integrated" mode. 
+ 
 Steps:  
 1.1 Estimation of the genome size  
 1.2 Generating the initial assembly  
-1.3 Quality control of initial assemblies  
-1.4 Remove organellar and erroneous contigs from the initial assemblies  
-1.5 Rerun the steps of Step 3 on the filtered assemblies  
-1.6 Rerun the steps of Step 3 on the filtered assemblies  
+1.3 Quality control of initial assemblies   
 
 ### 1.1 Estimation of the genome size
 Before starting a de novo genome assembly project, it is useful to estimate the expected genome size. Traditionally, DNA flow cytometry was considered the golden standard for estimating the genome size. Nowadays, experimental methods have been replaced by computational approaches. One of the widely used genome profiling methods is based on the analysis of k-mer frequencies. It allows one to provide information not only about the genomic complexity, such as the genome size and levels of heterozygosity and repeat content but also about the data quality. There are different software that can calculate k-mer frequency such as Jellyfish, KMC, KAT, Meryl, ....  I used [KMC](https://github.com/refresh-bio/KMC) and [GenomeScope2](http://qb.cshl.edu/genomescope/genomescope2.0/). 
 #### KMC  
 KMC is a disk-based program for counting k-mers from (possibly gzipped) FASTQ/FASTA files.  
 Here is the script:  
-
+```
 ls *.fastq > Files
 kmc -k21 -t16 -m64 -ci1 -cs10000 @Files reads $SCRATCHDIR
 kmc_tools transform reads histogram reads.hist -cx10000
+##### You might need to change the parameters and values ####
 ```
-This script produces these outputs: *reads.histo* ,*reads.kmc_pre* ,*reads.kmc_suf*. Then we can upload histo file into [GenomeScope2](http://qb.cshl.edu/genomescope/genomescope2.0/) to create the plots. 
+This script produces these outputs: *reads.histo* ,*reads.kmc_pre* ,*reads.kmc_suf*. Then we can upload histo file into [GenomeScope2](http://qb.cshl.edu/genomescope/genomescope2.0/) to create the plots, or run genomeScope package:
+
+```
+genomescope2 -i //reads.histo -o reads_k31_cs2milion_gs2 -k 21 -p 2
+##### You might need to change the parameters and values ####
+```
  
 ### 1.2 Generating the initial assembly  
 Run hifiasm (https://github.com/chhylp123/hifiasm) to generate initial assembly.
@@ -117,21 +121,8 @@ After generating the promary assembly, we should check the quality of assembly f
 QUAST stands for QUality ASsessment Tool. It evaluates genome/metagenome assemblies by computing various metrics. The QUAST package works both with and without reference genomes. However, it is much more informative if at least a close reference genome is provided along with the assemblies. The tool accepts multiple assemblies and thus is suitable for comparison.  
 Here is the script:  
 ```
-#!/bin/bash
 
-#PBS -l select=1:ncpus=16:mem=100gb:scratch_local=100gb
-#PBS -l walltime=100:00:00
-
-module add quast/4.6.3
-
-
-INPUT=/storage/brno2/home/mahnaz_nezami/outputs/hifiasm/conAdapt/Erysimum/hetero_hifiRun
-OUTPUT=/storage/brno2/home/mahnaz_nezami/outputs/quast/conAdapt/Erysimum/quast_results_primaryAsm
-
-cd $SCRATCHDIR
-mkdir out
-cp $INPUT/Erysimum.asm.bp.p_ctg.fa .
-python /software/quast/4.6.3/quast.py ./Erysimum.asm.bp.p_ctg.fa
+python /software/quast/4.6.3/quast.py ./asm_HiC_mod.bp.p_ctg.fa
 ```
 These are the outputs:  
 ```
@@ -153,22 +144,8 @@ reads_stats/            [only if reads are provided]
 BUSCO completeness assessment employs sets of Benchmarking Universal Single-Copy Orthologs from OrthoDB (www.orthodb.org) to provide quantitative measures of the completeness of genome assemblies, annotated gene sets, and transcriptomes in terms of expected gene content. Genes that make up the BUSCO sets for each major lineage are selected from orthologous groups with genes present as single-copy orthologs in at least 90% of the species. While allowing for rare gene duplications or losses, this establishes an evolutionarily informed expectation that these genes should be found as single-copy orthologs in the genome of any newly-sequenced species.  
 Choose and download a library of lineage-specific BUSCO data (http://busco.ezlab.org), we recommend using the largest library possible for your species.  
 ```
-#!/bin/bash
-
-#PBS -l select=1:ncpus=32:mem=100gb:scratch_local=100gb
-#PBS -l walltime=50:00:00
-
-module add conda-modules/py37
-conda activate busco_v5.4.3_py3.8
-
-
-INPUT=/storage/brno2/home/mahnaz_nezami/outputs/hifiasm/conAdapt/Erysimum/hetero_hifiRun
-OUTPUT=/storage/brno2/home/mahnaz_nezami/outputs/busco/conAdapt/Erysimum/primary_assembly_file/brassi_lineage
-
-cd $SCRATCHDIR
-
-cp -r $INPUT/Erysimum.asm.bp.p_ctg.fa .
-busco -m genome --in Erysimum.asm.bp.p_ctg.fa -o out_busco_brassica -l brassicales_odb10
+##### You might need to change the database ####
+busco -m genome --in asm_HiC_mod.bp.p_ctg.fa -o "your output name" -l brassicales_odb10
 ```
 Successful execution of the BUSCO assessment pipeline will create a directory named name_OUTPUT where ‘name’ is your assigned name for the assessment run. The directory will contain several files and directories:
 
