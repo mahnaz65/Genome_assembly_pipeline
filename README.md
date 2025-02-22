@@ -10,7 +10,6 @@ https://drive.google.com/file/d/16gE0bZWr3eby1jbJR1oITroP3scXxwfJ/view?usp=drive
 https://drive.google.com/file/d/1GtP7SLnQEGgsxywnZqsOaTIDWN5QYsLs/view?usp=drive_link
 
 
-```
 Generally, there are three steps to generate the assembly file. First is generating the initial assembly, then scaffolding, and then polishing.
 
 ## 1. Initial assembly:
@@ -28,7 +27,7 @@ Before starting a de novo genome assembly project, it is useful to estimate the 
 #### KMC  
 KMC is a disk-based program for counting k-mers from (possibly gzipped) FASTQ/FASTA files.  
 Here is the script:  
-```
+
 ls *.fastq > Files
 kmc -k21 -t16 -m64 -ci1 -cs10000 @Files reads $SCRATCHDIR
 kmc_tools transform reads histogram reads.hist -cx10000
