@@ -1,6 +1,5 @@
 # Genome_assembly_pipeline
 To learn the steps of genome assembly using Hifiasm  
-Genome assembly workshop
 
 # Raw data
 
