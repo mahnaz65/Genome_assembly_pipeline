@@ -1,14 +1,3 @@
-
-# Genome Assembly Tutorial
-
-This tutorial is split into four parts:
-
-1. [Part 1: Introduction](part1/README.md)
-2. [Part 2: Quality Control](part2/README.md)
-3. [Part 3: Assembly Tools](part3/README.md)
-4. [Part 4: Assembly Evaluation](part4/README.md)
-
-
 # Genome_assembly_pipeline
 To learn the steps of genome assembly using Hifiasm  
 
