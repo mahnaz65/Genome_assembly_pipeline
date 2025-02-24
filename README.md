@@ -12,6 +12,11 @@ https://drive.google.com/file/d/1GtP7SLnQEGgsxywnZqsOaTIDWN5QYsLs/view?usp=drive
 
 ## Introduction
 Generally, there are three steps to generate the assembly file. First is generating the initial assembly, then scaffolding, and then polishing. 
+1. [Part 1: Generating the initial assembly](part1/Initial_assembly.md)
+2. [Part 2: Scaffolding](part2/Scaffolding.md)
+3. [Part 3: Polishing](part3/Polishing.md)
+
+
 ## 1. Initial assembly:
 In this page, we will use PacBio HiFi reads + HiC data. The assembler is Hifiasm (v1.9.8), that it can be run in three modes based on our available data, the heterozygosity of our species, and our downstream usage of the assembly. Here, I run it in the "HiC_integrated" mode. 
  
