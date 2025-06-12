@@ -24,8 +24,8 @@ Run the second script using the cutoffs from the previous step to analyse the co
 Step 3:
 Run the purging pipeline. This script will automatically run a BEDTools windowed coverage analysis (if generating dotplots), and minimap2 alignments to assess which contigs to reassign and which to keep. The pipeline will make several iterations of purging. Optionally, parse repeats -r in BED format for improved handling of repetitive regions. 
 
-`$ purge_haplotigs purge -d -g <prefix>.fa -c coverage_stats.csv -b <bamprefix>.bam -t 16`
-```
+`$ purge_haplotigs purge -d -g <prefix>.fa -c coverage_stats.csv -b <bamprefix>.bam -t 16` 
+
 We will have five files
 
 <prefix>.fasta: These are the curated primary contigs
