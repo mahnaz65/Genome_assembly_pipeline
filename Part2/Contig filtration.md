@@ -4,7 +4,8 @@ Haplotigs: purge_haplotigs
 Contigs from chloroplast or mitochondria: BLAST
 
 
-### Blobtools
+### [Blobtools](https://blobtools.readme.io/docs/what-is-blobtools) 
+
 Three file prep steps, then GUI:
 
 1. blast (Diamond or mmseqs2) hit for each contig/scaffold.
