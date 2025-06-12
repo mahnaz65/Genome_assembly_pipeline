@@ -36,3 +36,33 @@ We will have five files
 <prefix>.reassignments.tsv: These are all the reassignments that were made, as well as the suspect contigs that weren't reassigned.
 <prefix>.contig_associations.log: This shows the contig "associations" e.g
 ```
+### BLAST to Refseq
+ We identified and removed non-nuclear DNA by blasting the primary assembly against a reference plastid sequence database from RefSeq using MMseqs2  to detect and filter plastid DNA, including mitochondrial and chloroplast sequences.
+Step 1:
+Create a database from your concatenated sequences (Sequences from chloroplast and mitochondria) 
+
+`$mmseqs createdb concatenetedSeq.fa concatenetedSeqDB` 
+Step2:
+Create a database for the assembly 
+
+`$mmseqs createdb <prefix>.fa <prefix>db` 
+Step3:
+Search the database 
+
+`$mmseqs search -a --start-sens 1 --sens-steps 3 -s 7 --search-type 3 --threads 16 <prefix>db concatenetedSeqDB blast_results $SCRATCHDIR` 
+Step4:
+Convert mmseq2 results to BLAST fromat (multiple cores, submit as batch) 
+
+`$mmseqs convertalis --search-type 3 --threads 16 <prefix>db concatenetedSeqDB blast_results blast_results.m8` 
+Step5:
+Keep best hits only 
+
+`$sort -k 1,1 -k 12,12rn -S 8G --parallel 8 blast_results.m8 | sort -u -k 1,1 -S 8G --parallel 8 > blast_results.best.hits.only.m8` 
+Step6:
+Get description of accession numbers of best hits 
+
+`$cut -f 2 blast_results.best.hits.only.m8 | sort -u > blast_results.best.hits.only.accession.number.out`
+Step7:
+Run a python script 
+
+`$python3 $BIN/get_definition_from_genbank_ids.py -i blast_results.best.hits.only.accession.number.out -o blast_results.best.hits.only.accession.number.and.definitions.out`
