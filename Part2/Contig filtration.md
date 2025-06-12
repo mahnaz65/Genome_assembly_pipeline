@@ -11,7 +11,8 @@ Three file prep steps, then GUI:
 2. get deep coverage file (any deep bam).
 3. get BUSCOs
 The pipeline documented [here](https://blobtools.readme.io/docs/what-is-blobtools)
-### purge_haplotigs
+### [Purge_haplotigs](https://bitbucket.org/mroachawri/purge_haplotigs/src/master/) 
+
 step 1:
 Generate a coverage histogram by running the first script. This script will produce a histogram png image file for you to look at and a BEDTools 'genomecov'-like file that you'll need for STEP 2. 
 
