@@ -14,7 +14,7 @@ https://drive.google.com/file/d/1GtP7SLnQEGgsxywnZqsOaTIDWN5QYsLs/view?usp=drive
 Generally, there are three steps to generate the assembly file. First is generating the initial assembly, then scaffolding, and then polishing. 
 1. [Part 1: Generating the initial assembly](Part1)
 2. [Part 2: Contig filtration](Part2)
-3. [Part 2: Scaffolding](part2/Scaffolding.md)
+3. [Part 3: Scaffolding](Part3)
 4. [Part 3: Polishing](part3/Polishing.md)
 
 
