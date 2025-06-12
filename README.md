@@ -15,7 +15,7 @@ Generally, there are three steps to generate the assembly file. First is generat
 1. [Part 1: Generating the initial assembly](Part1)
 2. [Part 2: Contig filtration](Part2)
 3. [Part 3: Scaffolding](Part3)
-4. [Part 3: Polishing](part3/Polishing.md)
+4. [Part 4: Polishing](Part4)
 
 
 ## Acknowledgements
