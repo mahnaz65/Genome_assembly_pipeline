@@ -27,9 +27,10 @@ Run the purging pipeline. This script will automatically run a BEDTools windowed
 `$ purge_haplotigs purge -d -g <prefix>.fa -c coverage_stats.csv -b <bamprefix>.bam -t 16` 
 
 We will have five files
-
+```
 <prefix>.fasta: These are the curated primary contigs
 <prefix>.haplotigs.fasta: These are all the haplotigs identified in the initial input assembly.
 <prefix>.artefacts.fasta: These are the very low/high coverage contigs (identified in STEP 2). NOTE: you'll probably have mitochondrial/chloroplast/etc. contigs in here with the assembly junk.
 <prefix>.reassignments.tsv: These are all the reassignments that were made, as well as the suspect contigs that weren't reassigned.
 <prefix>.contig_associations.log: This shows the contig "associations" e.g
+```
