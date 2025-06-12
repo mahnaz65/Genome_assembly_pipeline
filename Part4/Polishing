@@ -1,1 +1,114 @@
+**Polishing assemblies** 
+
+1. * The first step of polishing assemblies is to align the HiFi reads back to the assembly. I use winnowmap for this instead of minimap2, to improve mapping of reads against repetitive regions. As winnowmap is quite slow when you give it a large number of reads and you do not need all of them if you have high coverage (e.g. 100x), I generally subset the HiFi reads (take about half of them), before alignment, using the seqtk tool (https://github.com/lh3/seqtk).
+
+   seqtk sample -s100 *HiFi_reads.fastq.gz* 0.5 | gzip > *HiFi_reads_subsampled_0_5.fastq.gz*
+
+   * Then, I align the reads to the genome using the following commands:
+
+   Winnowmap-2.03/bin/meryl count threads=1 memory=10000 k=15 output *merylDB_k15_genome*  (choose output folder name as you see fit) *genome.fa*
+
+   Winnowmap-2.03/bin/meryl print greater-than distinct=0.9998 *merylDB_k15_genome* > *merylDB_k15_genome_repetitive.txt*
+
+   winnowmap -W *merylDB_k15_genome_repetitive.txt* \
+   -ax map-pb *genome.fa* *HiFi_reads_subsampled_0_5.fastq.gz* | samtools view -u | samtools sort \
+   -o *winnowmap2_long_read_alignments.bam* - && \
+   samtools index *winnowmap2_long_read_alignments.bam*
+
+2. * The next step is to run Deepvariant (https://github.com/google/deepvariant) on the winnowmap alignments to identify small variants. The way to install Deepvariant depends on your system, but the commands should look like this:
+
+   mkdir deepvariant_output
+
+   docker run \
+     -v "YOUR_INPUT_DIR":"/input" \
+     -v "YOUR_OUTPUT_DIR:/output" 
+   google/deepvariant:"${BIN_VERSION}" \
+   /opt/deepvariant/bin/run_deepvariant \
+       --model_type PACBIO \
+       --ref *genome.fa* \
+       --reads winnowmap2_long_read_alignments.bam \
+       --output_vcf deep_variant_winnowmap_output.vcf.gz \
+       --num_shards 20
+
+   * Change the command (particularly the input and output mounts) accordingly.
+
+3. * The next step is to create a window-based coverage distribution of winnowmap2 alignments with a mapping quality of at least 30. This is done to identify variants in the polishing stage that are in repetitive regions (see other file in which I describe mosdepth to see the commands preceding this file):
+
+   mosdepth -t 8 -b 10000 *genome* -n -x -Q 30 *winnowmap_alignments.bam*
+
+   * I visualize the coverage distribution of all windows (found in the output file ending with .regions.bed.gz) and use this to determine what coverage represents the unique region of the genome, without sequencing errors (e.g. from 10 to 120). You should see two peaks in this distribution, corresponding to the peaks representing heterozygous and homozygous regions. All variants found in regions that have a different coverage (non-unique) are excluded from polishing. I obtain the regions like this:
+
+   gunzip -c *output_file.quantized.bed.gz* | awk -F "\t" 'BEGIN{OFS="\t"} {if ($4 == "9:120") { print $1, $2, $3, $4 }}' >  *quantized_filtered_regions_coverage_10_120.bed*
+
+   bedtools intersect -a *quantized_filtered_regions_coverage_10_120.bed* -b *genome.fa.bed* (BED file containing one contig per line) -wa > *genome_quantized_filtered_to_keep.bed*
+
+   
+
+4. * Next, we run CuteSV on the Winnowmap alignments to identify large variants. 
+
+   mkdir cutesv_workdir
+
+   cuteSV \
+   --genotype --max_cluster_bias_INS 100 --diff_ratio_merging_INS 0.3 --max_cluster_bias_DEL 200 --diff_ratio_merging_DEL 0.5 --threads 16 \
+   *winnowmap2_long_read_alignments.bam* \
+   *genome.fa* \
+   *output.vcf* cutesv_workdir
+
+   I then filter the cuteSV output to only include variants found in unique regions and that show an allele frequency of at least 0.9 (90% of aligned reads support variant, done to exclude heterozygous variants):
+
+   cut -f1,2 *genome.fa.fai* > *genome.fa.genome*
+
+   bedtools slop -i *genome_quantized_filtered_to_keep.bed* -g *genome.fa.genome* -b -1 > *genome_quantized_filtered_to_keep_slop_1.bed*
+
+   * (These steps are necessary to prevent off by 1 errors)
+
+   bcftools view -Oz -i '(GT="AA")' *output.vcf* > *output_homozygous.vcf.gz*
+
+   bcftools index *output_homozygous.vcf.gz*
+
+   bcftools view -Oz -R *genome_quantized_filtered_to_keep_slop_1.bed* *output_homozygous.vcf.gz* > *output_homozygous_filtered_depth_10_120.vcf.gz*
+
+   * Use an AF filter of 0.9:
+
+   bcftools view -Oz -i 'INFO/AF >= 0.9' *output_homozygous_filtered_depth_10_120.vcf.gz* > *output_homozygous_filtered_depth_10_120_AF_0_9.vcf.gz*
+
+   * I manually check every variant in IGV to check whether the alignments support it and remove the those not are not supported from the VCF file. E.g. to remove variants cuteSV.DUP.34 and cuteSV.DUP.33 (change names accordingly):
+
+   bcftools view -Oz -e 'ID="*cuteSV.DUP.34*" | ID="*cuteSV.DUP.33*"' *output_homozygous_filtered_depth_10_120_AF_0_9.vcf.gz* > *output_homozygous_filtered_depth_10_120_AF_0_9._false_positives_removed.vcf.gz*
+
+   bcftools index *output_homozygous_filtered_depth_10_120_AF_0_9._false_positives_removed.vcf.gz*
+
+5. * Same as with the CuteSV variants, I only keep Deepvariant calls that are homozygous and in unique regions:
+
+   bcftools view -Oz -i '(GT="AA" & QUAL>1)' *deep_variant_winnowmap_output.vcf.gz* > *deep_variant_winnowmap_output_homozygous_filtered.vcf.gz*
+
+   bcftools index *deep_variant_winnowmap_output_homozygous_filtered.vcf.gz*
+
+   * Filter calls in regions with suspicious read coverage:
+
+   bcftools view -Oz -R *genome_quantized_filtered_to_keep.bed* *deep_variant_winnowmap_output_homozygous_filtered.vcf.gz* > *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120.vcf.gz*
+
+   * Filter calls using a VAF of 0.9, like with the cuteSV calls:
+
+   bcftools view -Oz -i 'FORMAT/VAF >= 0.9' *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120.vcf.gz* > *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz*
+
+   bcftools index *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz*
+
+6. * Finally, I polish the assembly using the variants produced by Deepvariant and cuteSV.
+
+   echo "NULL" > sample_name.txt
+
+   bcftools reheader -s sample_name.txt *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz* > *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9_sample_name_corrected.vcf.gz*
+
+   * This step is necessary to make the file work with bcftools later on
+
+   bcftools index *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9_sample_name_corrected.vcf.gz* 
+
+   bcftools concat -a -d both -Oz *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9_sample_name_corrected.vcf.gz*  *deep_variant_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz* > *deep_variant_cutesv_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz*
+
+   bcftools index *deep_variant_cutesv_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz*
+
+   bcftools consensus -f *genome.fa* *deep_variant_cutesv_winnowmap_output_homozygous_filtered_depth_10_120_VAF_0_9.vcf.gz* > *genome_polished.fa*
+
+   * This is the final version of the assembly, of which I then perform a final quality check using QUAST, BUSCO, Merqury, etc.
 
