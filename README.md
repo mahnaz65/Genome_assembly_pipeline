@@ -21,14 +21,3 @@ Generally, there are three steps to generate the assembly file. First is generat
 
 I would like to thank Raúl Wijfjes (https://orcid.org/0000-0003-0806-2911) for teaching me this pipeline and for sharing his documentation and steps, which I used as the basis for this project.
 
-
-
-
-
-
-gb Complete BUSCO matches, GenBank format
-
-gffs Complete BUSCO matches, GFF format
-
-hmmer_output Tabular format HMMER output of searches with BUSCO HMMs  
-
